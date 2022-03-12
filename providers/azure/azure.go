@@ -8,6 +8,7 @@ import (
 	"github.com/stevequadros/uploader/config"
 	"github.com/stevequadros/uploader/providers"
 	"io"
+	"io/ioutil"
 )
 
 type AzureUploader struct {
@@ -35,12 +36,29 @@ func New(config config.AzureConfig) (*AzureUploader, error) {
 
 func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error {
 	containerClient := u.client.NewContainerClient(bucket)
-	_, err := containerClient.Create(ctx, &azblob.CreateContainerOptions{})
+	// if container already exists, proceed without creation
+	res, err := containerClient.GetProperties(ctx, nil)
+	if res.ETag == nil {
+		_, err = containerClient.Create(ctx, &azblob.CreateContainerOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	// azure closes the file, which will cause future calls to fail
+	// this is a workaround for now, but we'll copy it over to avoid this - in real application
+	// I'd prefer a better method since this could cause issues with large files
+	tmp, err := ioutil.TempFile("", "filescom-tmp-")
+	_, err = io.Copy(tmp, reader)
+	if err != nil {
+		return err
+	}
+	_, err = tmp.Seek(0, 0)
 	if err != nil {
 		return err
 	}
 	blobClient := containerClient.NewBlockBlobClient(key)
-	_, err = blobClient.Upload(ctx, reader, &azblob.UploadBlockBlobOptions{})
+	_, err = blobClient.Upload(ctx, tmp, &azblob.UploadBlockBlobOptions{})
 	if err != nil {
 		return providers.NewUploadError("Azure", err)
 	}

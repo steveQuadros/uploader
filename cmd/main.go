@@ -22,6 +22,7 @@ import (
 // - move bucket creation to interface function for easy testing of paths
 // - check all buckets are valid before trying to upload to avoid partial uploads TOP
 // - move uploader behind interface for easy testing`
+// - !! TRY SIMPLY IGNORING ERROR TYPE FOR CONTAINER BUCKET EXISTS IF POSSIBLE
 // verify file was uploaded code for ease of use - maybe
 // uploading files should attempt all and return list of errors rather than fast failing
 // os.Getenv for additional option to config file
@@ -51,6 +52,11 @@ func main() {
 	}
 
 	configFile, err := os.Open(configPath)
+	defer func() {
+		if err = configFile.Close(); err != nil {
+			log.Fatal("error closing config file", err)
+		}
+	}()
 	if err != nil {
 		log.Fatal("error opening config ", err)
 	}
@@ -60,6 +66,11 @@ func main() {
 	}
 
 	file, err := os.Open(filename)
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.Fatal("error closing upload file", err)
+		}
+	}()
 	if err != nil {
 		log.Fatal("could not open file to upload ", err)
 	}

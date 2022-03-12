@@ -46,9 +46,12 @@ func New(ctx context.Context, config config.GCPConfig) (*GCPUploader, error) {
 
 func (u *GCPUploader) Upload(ctx context.Context, bucketName, key string, reader io.ReadSeekCloser) error {
 	bucket := u.client.Bucket(bucketName)
-	if err := bucket.Create(ctx, u.credentials.ProjectID, &storage.BucketAttrs{}); err != nil {
-		return err
+	if bucketAttrs, err := bucket.Attrs(ctx); bucketAttrs == nil {
+		if err = bucket.Create(ctx, u.credentials.ProjectID, &storage.BucketAttrs{}); err != nil {
+			return err
+		}
 	}
+
 	obj := bucket.Object(key)
 	writer := obj.NewWriter(ctx)
 	content, err := io.ReadAll(reader)
