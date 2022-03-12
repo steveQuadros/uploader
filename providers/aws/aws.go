@@ -2,12 +2,14 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/stevequadros/uploader/config"
 	"golang.org/x/oauth2/google"
 	"os"
 )
@@ -17,11 +19,14 @@ type Uploader struct {
 	client      *s3manager.Uploader
 }
 
-func New() (*Uploader, error) {
+func New(config *config.AWSConfig) (*Uploader, error) {
+	if config.Credentials == nil {
+		return nil, errors.New("AWS credentials are empty")
+	}
 	// The session the S3 Uploader will use
 	provider := &credentials.SharedCredentialsProvider{
-		Filename: "",
-		//Profile:  "default",
+		Filename: config.Credentials.Filename,
+		Profile:  config.Credentials.Profile,
 	}
 	creds := credentials.NewCredentials(provider)
 	sess, err := session.NewSession(&aws.Config{

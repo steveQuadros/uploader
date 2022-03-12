@@ -1,0 +1,19 @@
+{
+  "aws": {
+    "credentials": {
+      "filename": "<PATH TO YOUR CREDENTIALS>/.aws/credentials",
+      "profile": "<YOUR CHOSEN AWS PROFILE>"
+    }
+  },
+  "azure": {
+    "credentials": {
+      "accountName": "<AZURE ACCOUNT NAME>",
+      "accountKey": "<AZURE ACCOUNT KEY>"
+    }
+  },
+  "gcp": {
+    "credentials": {
+      "filename": "<PATH TO YOUR GCP JSON File>"
+    }
+  }
+}

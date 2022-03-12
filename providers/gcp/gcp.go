@@ -3,6 +3,8 @@ package gcp
 import (
 	"cloud.google.com/go/storage"
 	"context"
+	"errors"
+	"github.com/stevequadros/uploader/config"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"io"
@@ -14,8 +16,12 @@ type Uploader struct {
 	client      *storage.Client
 }
 
-func New(ctx context.Context, credentialsFile string) (*Uploader, error) {
-	f, err := os.Open(credentialsFile)
+func New(ctx context.Context, config *config.GCPConfig) (*Uploader, error) {
+	if config.Credentials == nil {
+		return nil, errors.New("gcp credentials are empty")
+	}
+
+	f, err := os.Open(config.Credentials.Filename)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +29,7 @@ func New(ctx context.Context, credentialsFile string) (*Uploader, error) {
 	if err != nil {
 		return nil, err
 	}
-	credentials, err := google.CredentialsFromJSON(ctx, credentialsJson, "https://www.googleapis.com/auth/devstorage.full_control")
+	credentials, err := google.CredentialsFromJSON(ctx, credentialsJson, config.Credentials.Scopes...)
 	if err != nil {
 		return nil, err
 	}
