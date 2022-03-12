@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"github.com/stevequadros/uploader/config"
 	"github.com/stevequadros/uploader/providers/aws"
@@ -9,6 +11,7 @@ import (
 	"github.com/stevequadros/uploader/providers/gcp"
 	"log"
 	"os"
+	"strings"
 )
 
 // providers
@@ -16,6 +19,7 @@ import (
 // Gcp complains if you try to create an existing bucket
 // - move bucket creation to interface function for easy testing of paths
 // - move uploader behind interface for easy testing`
+// verify file was uploaded code for ease of use - maybe
 
 const (
 	AzureAccountName string = "AZURE_ACCOUNT_NAME"
@@ -23,9 +27,38 @@ const (
 	AWSFilename      string = "AWS_FILENAME"
 	AWSProfile       string = "AWS_PROFILE"
 	GCPFilename      string = "GCP_FILENAME"
+	AWS              string = "aws"
+	GCP              string = "gcp"
+	Azure            string = "azure"
 )
 
+var ValidProviders = map[string]struct{}{
+	AWS:   {},
+	GCP:   {},
+	Azure: {},
+}
+
+type providerFlag []string
+
+func (i *providerFlag) String() string {
+	return "my string representation"
+}
+
+func (i *providerFlag) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+var providers providerFlag
+
 func main() {
+	flag.Var(&providers, "provider", "Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
+	flag.Parse()
+
+	if err := validateProviders(providers); err != nil {
+		log.Fatal("error validating providers: ", err)
+	}
+
 	file, err := os.Open("test.txt")
 	if err != nil {
 		log.Fatal("could not open file", err)
@@ -74,5 +107,22 @@ func main() {
 	}
 	if err = azureClient.Upload(ctx, "filescom-takehome", file.Name(), file); err != nil {
 		log.Fatal("error uploading azure", err)
+	}
+}
+
+func validateProviders(providers []string) error {
+	if len(providers) == 0 {
+		return errors.New("providers cannot be empty")
+	}
+	b := strings.Builder{}
+	for _, p := range providers {
+		if _, ok := ValidProviders[p]; !ok {
+			b.WriteString(fmt.Sprintf("%q is not a valid provider\n", p))
+		}
+	}
+	if b.Len() != 0 {
+		return errors.New(b.String())
+	} else {
+		return nil
 	}
 }
