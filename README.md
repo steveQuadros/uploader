@@ -1,12 +1,14 @@
 # Sample Multi Cloud Uploader
 
 ## Quick Start
+see `example_config.json` for config file format
+
 run `make build`
 
 run `./uploader` to see usage
 
 ## Targets
-Currently targets aws, gcp, and azure, and any specific one can be targeted.
+Targets aws, gcp, and azure, and any specific one can be targeted.
 
 ex:
 

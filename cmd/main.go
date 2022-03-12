@@ -45,7 +45,9 @@ var providers providerFlag
 var filename, configPath, bucket, key string
 
 var usage = `
-uploader uploads a file to any of the provider providers [aws, gcp, azure] to the given bucket, key
+uploader uploads a file to any of the provider providers [aws, gcp, azure] to the given bucket, key.
+
+see example_config.json to get started on your config file. 
 
 Example Usage:
 ./uploader --provider aws --provider azure --provider gcp --file test.txt --config ~/.filescom/config.json -bucket filescometestagain -key test.txt
