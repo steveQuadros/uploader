@@ -21,6 +21,7 @@ import (
 // - move uploader behind interface for easy testing`
 // verify file was uploaded code for ease of use - maybe
 // uploading files should attempt all and return list of errors rather than fast failing
+// os.Getenv for additional option to config file
 
 type Provider string
 
@@ -89,9 +90,15 @@ func main() {
 	}
 
 	ctx := context.Background()
+	var uploadErrors []error
 	for _, p := range providers {
 		if err = initProvider(p, ctx, cfg, file); err != nil {
-			log.Fatal("error initializing provider:", p, err)
+			uploadErrors = append(uploadErrors, err)
+		}
+	}
+	if len(uploadErrors) > 0 {
+		for _, e := range uploadErrors {
+			fmt.Println(e)
 		}
 	}
 }
