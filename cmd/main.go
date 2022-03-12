@@ -61,31 +61,12 @@ func (i *providerFlag) Set(value string) error {
 	return nil
 }
 
+var providers providerFlag
+var filename, configPath, bucket, key string
+
 func main() {
-	var providers providerFlag
-	var filename, configPath, bucket, key string
-	flag.Var(&providers, "provider", "Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
-	flag.StringVar(&filename, "file", "", "The file to upload")
-	flag.StringVar(&configPath, "config", "", "Path to config.json")
-	flag.StringVar(&bucket, "bucket", "", "target bucket for file")
-	flag.StringVar(&key, "key", "", "key for file")
-	flag.Parse()
+	validateFlags()
 
-	if err := validateProviders(providers); err != nil {
-		log.Fatal("error validating providers: ", err)
-	}
-
-	if filename == "" {
-		log.Fatal("no file provided")
-	}
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatal("could not open file", err)
-	}
-
-	if configPath == "" {
-		log.Fatal("no config filepath passed")
-	}
 	configFile, err := os.Open(configPath)
 	if err != nil {
 		log.Fatal("error opening config", err)
@@ -95,12 +76,9 @@ func main() {
 		log.Fatal("error parsing configfile", err)
 	}
 
-	if bucket == "" {
-		log.Fatal("no bucket provided")
-	}
-
-	if key == "" {
-		log.Fatal("no key provided")
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal("could not open file", err)
 	}
 
 	ctx := context.Background()
@@ -108,7 +86,8 @@ func main() {
 	var clients []xproviders.Uploader
 	var initErrors []error
 	for _, p := range providers {
-		client, err := initProvider(ctx, p, cfg)
+		var client xproviders.Uploader
+		client, err = initProvider(ctx, p, cfg)
 		if err != nil {
 			initErrors = append(initErrors, err)
 		}
@@ -140,6 +119,35 @@ func main() {
 	}
 	for e := range uploadErrors {
 		fmt.Println(e)
+	}
+}
+
+func validateFlags() {
+	flag.Var(&providers, "provider", "Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
+	flag.StringVar(&filename, "file", "", "The file to upload")
+	flag.StringVar(&configPath, "config", "", "Path to config.json")
+	flag.StringVar(&bucket, "bucket", "", "target bucket for file")
+	flag.StringVar(&key, "key", "", "key for file")
+	flag.Parse()
+
+	if err := validateProviders(providers); err != nil {
+		log.Fatal("error validating providers: ", err)
+	}
+
+	if configPath == "" {
+		log.Fatal("no config filepath passed")
+	}
+
+	if filename == "" {
+		log.Fatal("no file provided")
+	}
+
+	if bucket == "" {
+		log.Fatal("no bucket provided")
+	}
+
+	if key == "" {
+		log.Fatal("no key provided")
 	}
 }
 
