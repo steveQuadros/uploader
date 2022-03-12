@@ -8,12 +8,12 @@ import (
 
 func TestValidProviders(t *testing.T) {
 	tc := map[string]struct {
-		providers []string
+		providers []Provider
 		err       bool
 	}{
-		"valid providers has no error":  {[]string{GCP, AWS, Azure}, false},
-		"no providers is an error":      {[]string{}, true},
-		"invalid providers is an error": {[]string{GCP, AWS, Azure, "Foo"}, true},
+		"valid providers has no error":  {[]Provider{GCP, AWS, Azure}, false},
+		"no providers is an error":      {[]Provider{}, true},
+		"invalid providers is an error": {[]Provider{GCP, AWS, Azure, "Foo"}, true},
 	}
 
 	for _, tt := range tc {
