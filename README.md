@@ -6,7 +6,7 @@ run `make build`
 run `./uploader` to see usage
 
 ## Targets
-Currently targets aws, gcp, and azure, and any specific one can be target.
+Currently targets aws, gcp, and azure, and any specific one can be targeted.
 
 ex:
 
