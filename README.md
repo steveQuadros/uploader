@@ -1,6 +1,6 @@
 # Sample Multi Cloud Uploader
 
-## Quick Started
+## Quick Start
 run `make build`
 
 run `./uploader` to see usage
