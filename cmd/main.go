@@ -101,7 +101,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	logSuccess("Providers Initialized")
+	logSuccess(fmt.Sprintf("Providers Initialized: %v", providers))
 
 	logInProcess("Beginning Uploads")
 	uploadErrors := make(chan ProviderError, len(providers))
