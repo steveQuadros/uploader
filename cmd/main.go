@@ -21,6 +21,11 @@ import (
 // os.Getenv for additional option to config file
 // configs need proper json annotations
 
+type ProviderError struct {
+	p   xproviders.Provider
+	err error
+}
+
 type providerFlag []xproviders.Provider
 
 func (i *providerFlag) String() string {
@@ -99,17 +104,18 @@ func main() {
 	logSuccess("Providers Initialized")
 
 	logInProcess("Beginning Uploads")
-	uploadErrors := make(chan error, len(providers))
+	uploadErrors := make(chan ProviderError, len(providers))
 	success := make(chan xproviders.Provider, len(providers))
 	wg := sync.WaitGroup{}
 	var count int
 	for i, c := range clients {
 		wg.Add(1)
 		go func(client xproviders.Uploader, n int) {
+			p := providers[n]
 			if uploadErr := client.Upload(context.Background(), bucket, key, file); uploadErr != nil {
-				uploadErrors <- uploadErr
+				uploadErrors <- ProviderError{p, uploadErr}
 			} else {
-				success <- providers[n]
+				success <- p
 			}
 			wg.Done()
 		}(c, i)
@@ -118,7 +124,7 @@ func main() {
 	for count < len(providers) {
 		select {
 		case e := <-uploadErrors:
-			logError("Error Uploading file: ", e)
+			logError(fmt.Sprintf("Error Uploading file to %q: ", e.p), e.err)
 			count++
 		case p := <-success:
 			logSuccess(fmt.Sprintf("Successfully Uploaded to %q", p))
