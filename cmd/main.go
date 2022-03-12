@@ -48,7 +48,7 @@ var usage = `
 uploader uploads a file to any of the provider providers [aws, gcp, azure] to the given bucket, key
 
 Example Usage:
-./uploader --provider aws --provider azure --provider gcp --file noexist --config ~/.filescom/config.json -bucket filescometestagain -key test.txt
+./uploader --provider aws --provider azure --provider gcp --file test.txt --config ~/.filescom/config.json -bucket filescometestagain -key test.txt
 `
 
 func main() {
@@ -139,11 +139,11 @@ func main() {
 }
 
 func validateFlags() error {
-	flag.Var(&providers, "provider", "Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
-	flag.StringVar(&filename, "file", "", "The file to upload")
-	flag.StringVar(&configPath, "config", "", "Path to config.json")
-	flag.StringVar(&bucket, "bucket", "", "Target bucket for file. Will Create bucket if it doesn't exist.")
-	flag.StringVar(&key, "key", "", "key for file")
+	flag.Var(&providers, "provider", "[REQUIRED 1+] Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
+	flag.StringVar(&filename, "file", "", "[REQUIRED] The file to upload")
+	flag.StringVar(&configPath, "config", "", "[REQUIRED] Path to config.json")
+	flag.StringVar(&bucket, "bucket", "", "[REQUIRED] Target bucket for file. Will Create bucket if it doesn't exist.")
+	flag.StringVar(&key, "key", "", "[REQUIRED] key for file")
 	flag.Parse()
 
 	if flag.NFlag() == 0 {
