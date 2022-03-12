@@ -57,7 +57,7 @@ func (u *GCPUploader) Upload(ctx context.Context, bucketName, key string, reader
 	}
 	_, err = writer.Write(content)
 	if err != nil {
-		return err
+		return providers.NewUploadError("GCP", err)
 	}
 	return writer.Close()
 }

@@ -42,7 +42,7 @@ func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader i
 	blobClient := containerClient.NewBlockBlobClient(key)
 	_, err = blobClient.Upload(ctx, reader, &azblob.UploadBlockBlobOptions{})
 	if err != nil {
-		return err
+		return providers.NewUploadError("Azure", err)
 	}
 	return nil
 }

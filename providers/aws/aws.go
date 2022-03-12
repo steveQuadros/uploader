@@ -3,7 +3,6 @@ package aws
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -59,7 +58,7 @@ func (u *AWSUploader) Upload(ctx context.Context, bucket, key string, reader io.
 		Body:   reader,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload file, %v", err)
+		return providers.NewUploadError("AWS", err)
 	}
 	return nil
 }

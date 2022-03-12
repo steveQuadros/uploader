@@ -27,26 +27,7 @@ import (
 // os.Getenv for additional option to config file
 // configs need proper json annotations
 
-type Provider string
-
-const (
-	AzureAccountName string   = "AZURE_ACCOUNT_NAME"
-	AzureKey         string   = "AZURE_KEY"
-	AWSFilename      string   = "AWS_FILENAME"
-	AWSProfile       string   = "AWS_PROFILE"
-	GCPFilename      string   = "GCP_FILENAME"
-	AWS              Provider = "aws"
-	GCP              Provider = "gcp"
-	Azure            Provider = "azure"
-)
-
-var ValidProviders = map[Provider]struct{}{
-	AWS:   {},
-	GCP:   {},
-	Azure: {},
-}
-
-type providerFlag []Provider
+type providerFlag []xproviders.Provider
 
 func (i *providerFlag) String() string {
 	b := strings.Builder{}
@@ -57,7 +38,7 @@ func (i *providerFlag) String() string {
 }
 
 func (i *providerFlag) Set(value string) error {
-	*i = append(*i, Provider(value))
+	*i = append(*i, xproviders.Provider(value))
 	return nil
 }
 
@@ -65,20 +46,22 @@ var providers providerFlag
 var filename, configPath, bucket, key string
 
 func main() {
-	validateFlags()
+	if err := validateFlags(); err != nil {
+		log.Fatal(err)
+	}
 
 	configFile, err := os.Open(configPath)
 	if err != nil {
-		log.Fatal("error opening config", err)
+		log.Fatal("error opening config ", err)
 	}
 	cfg, err := config.NewFromJSON(configFile)
 	if err != nil {
-		log.Fatal("error parsing configfile", err)
+		log.Fatal("error parsing configfile ", err)
 	}
 
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatal("could not open file", err)
+		log.Fatal("could not open file to upload ", err)
 	}
 
 	ctx := context.Background()
@@ -122,7 +105,7 @@ func main() {
 	}
 }
 
-func validateFlags() {
+func validateFlags() error {
 	flag.Var(&providers, "provider", "Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
 	flag.StringVar(&filename, "file", "", "The file to upload")
 	flag.StringVar(&configPath, "config", "", "Path to config.json")
@@ -130,34 +113,45 @@ func validateFlags() {
 	flag.StringVar(&key, "key", "", "key for file")
 	flag.Parse()
 
+	var validationErrors []error
 	if err := validateProviders(providers); err != nil {
-		log.Fatal("error validating providers: ", err)
+		validationErrors = append(validationErrors, err)
 	}
 
 	if configPath == "" {
-		log.Fatal("no config filepath passed")
+		validationErrors = append(validationErrors, errors.New("configPath cannot be empty"))
 	}
 
 	if filename == "" {
-		log.Fatal("no file provided")
+		validationErrors = append(validationErrors, errors.New("filename to upload cannot be empty"))
 	}
 
 	if bucket == "" {
-		log.Fatal("no bucket provided")
+		validationErrors = append(validationErrors, errors.New("bucket cannot be empty"))
 	}
 
 	if key == "" {
-		log.Fatal("no key provided")
+		validationErrors = append(validationErrors, errors.New("key cannot be empty"))
+	}
+
+	if len(validationErrors) > 0 {
+		b := strings.Builder{}
+		for _, e := range validationErrors {
+			b.WriteString(e.Error() + "\n")
+		}
+		return errors.New(b.String())
+	} else {
+		return nil
 	}
 }
 
-func validateProviders(providers []Provider) error {
+func validateProviders(providers []xproviders.Provider) error {
 	if len(providers) == 0 {
 		return errors.New("providers cannot be empty")
 	}
 	b := strings.Builder{}
 	for _, p := range providers {
-		if _, ok := ValidProviders[p]; !ok {
+		if _, ok := xproviders.Providers[p]; !ok {
 			b.WriteString(fmt.Sprintf("%q is not a valid provider\n", p))
 		}
 	}
@@ -168,13 +162,13 @@ func validateProviders(providers []Provider) error {
 	}
 }
 
-func initProvider(ctx context.Context, p Provider, cfg *config.Config) (xproviders.Uploader, error) {
+func initProvider(ctx context.Context, p xproviders.Provider, cfg *config.Config) (xproviders.Uploader, error) {
 	switch p {
-	case AWS:
+	case xproviders.AWS:
 		return initAWS(cfg.GetAWS())
-	case GCP:
+	case xproviders.GCP:
 		return initGCP(ctx, cfg.GetGCP())
-	case Azure:
+	case xproviders.Azure:
 		return initAzure(cfg.GetAzure())
 	default:
 		return nil, errors.New("unknown provider")
