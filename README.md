@@ -25,3 +25,9 @@ All Three
 - Buckets are created if they do not exist
 - Files are uploaded concurrently to providers
   - There is in issue in Azure which closes the passed in `ReadSeekCloser`, which had to worked around by copying the file. A comment was added to fix this when possible.
+
+## Enhancements
+- Additional unit Testing
+- Integration Testing using [min.io](https://min.io))
+- Supporting multiple credential types
+- Supporting env vars in addition to config file

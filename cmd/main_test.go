@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
+	xproviders "github.com/stevequadros/uploader/providers"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestValidProviders(t *testing.T) {
 	tc := map[string]struct {
-		providers []Provider
+		providers []xproviders.Provider
 		err       bool
 	}{
-		"valid providers has no error":  {[]Provider{GCP, AWS, Azure}, false},
-		"no providers is an error":      {[]Provider{}, true},
-		"invalid providers is an error": {[]Provider{GCP, AWS, Azure, "Foo"}, true},
+		"valid providers has no error":  {[]xproviders.Provider{xproviders.GCP, xproviders.AWS, xproviders.Azure}, false},
+		"no providers is an error":      {[]xproviders.Provider{}, true},
+		"invalid providers is an error": {[]xproviders.Provider{xproviders.GCP, xproviders.AWS, xproviders.Azure, "Foo"}, true},
 	}
 
 	for _, tt := range tc {
