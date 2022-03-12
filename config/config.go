@@ -1,9 +1,29 @@
 package config
 
+import (
+	"encoding/json"
+	"io"
+)
+
 type Config struct {
 	AWS   *AWSConfig
 	Azure *AzureConfig
 	GCP   *GCPConfig
+}
+
+func NewFromJSON(reader io.Reader) (*Config, error) {
+	var configData []byte
+	configData, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &Config{}
+	err = json.Unmarshal(configData, config)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 // @TODO make unexported unnecessary types
