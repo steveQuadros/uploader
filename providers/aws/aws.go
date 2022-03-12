@@ -10,20 +10,23 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stevequadros/uploader/config"
+	"github.com/stevequadros/uploader/providers"
 	"golang.org/x/oauth2/google"
-	"os"
+	"io"
 )
 
-type Uploader struct {
+type AWSUploader struct {
 	credentials *google.Credentials
 	client      *s3manager.Uploader
 }
 
-func New(config *config.AWSConfig) (*Uploader, error) {
+var _ providers.Uploader = (*AWSUploader)(nil)
+
+func New(config config.AWSConfig) (*AWSUploader, error) {
 	if config.Credentials == nil {
 		return nil, errors.New("AWS credentials are empty")
 	}
-	// The session the S3 Uploader will use
+	// The session the S3 AWSUploader will use
 	provider := &credentials.SharedCredentialsProvider{
 		Filename: config.Credentials.Filename,
 		Profile:  config.Credentials.Profile,
@@ -39,12 +42,12 @@ func New(config *config.AWSConfig) (*Uploader, error) {
 
 	// Create an uploader with the session and default options
 	client := s3manager.NewUploader(sess)
-	return &Uploader{
+	return &AWSUploader{
 		client: client,
 	}, nil
 }
 
-func (u *Uploader) Upload(ctx context.Context, bucket, key string, file *os.File) error {
+func (u *AWSUploader) Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error {
 	_, err := u.client.S3.CreateBucket(&s3.CreateBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {
 		return err
@@ -53,7 +56,7 @@ func (u *Uploader) Upload(ctx context.Context, bucket, key string, file *os.File
 	_, err = u.client.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-		Body:   file,
+		Body:   reader,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upload file, %v", err)

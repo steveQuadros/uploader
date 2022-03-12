@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/stevequadros/uploader/config"
-	"os"
+	"github.com/stevequadros/uploader/providers"
+	"io"
 )
 
-type Uploader struct {
+type AzureUploader struct {
 	client *azblob.ServiceClient
 }
 
-func New(config *config.AzureConfig) (*Uploader, error) {
+var _ providers.Uploader = (*AzureUploader)(nil)
+
+func New(config config.AzureConfig) (*AzureUploader, error) {
 	if config.Credentials == nil {
 		return nil, errors.New("azure credentials are empty")
 	}
@@ -27,17 +30,17 @@ func New(config *config.AzureConfig) (*Uploader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Uploader{client: &serviceClient}, nil
+	return &AzureUploader{client: &serviceClient}, nil
 }
 
-func (u *Uploader) Upload(ctx context.Context, bucket, key string, file *os.File) error {
+func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error {
 	containerClient := u.client.NewContainerClient(bucket)
 	_, err := containerClient.Create(ctx, &azblob.CreateContainerOptions{})
 	if err != nil {
 		return err
 	}
 	blobClient := containerClient.NewBlockBlobClient(key)
-	_, err = blobClient.Upload(ctx, file, &azblob.UploadBlockBlobOptions{})
+	_, err = blobClient.Upload(ctx, reader, &azblob.UploadBlockBlobOptions{})
 	if err != nil {
 		return err
 	}

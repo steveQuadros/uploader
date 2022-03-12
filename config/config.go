@@ -26,6 +26,18 @@ func NewFromJSON(reader io.Reader) (*Config, error) {
 	return config, nil
 }
 
+func (c *Config) GetAWS() AWSConfig {
+	return *c.AWS
+}
+
+func (c *Config) GetGCP() GCPConfig {
+	return *c.GCP
+}
+
+func (c *Config) GetAzure() AzureConfig {
+	return *c.Azure
+}
+
 // @TODO make unexported unnecessary types
 
 type AWSConfig struct {

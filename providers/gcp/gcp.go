@@ -5,18 +5,21 @@ import (
 	"context"
 	"errors"
 	"github.com/stevequadros/uploader/config"
+	"github.com/stevequadros/uploader/providers"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"io"
 	"os"
 )
 
-type Uploader struct {
+type GCPUploader struct {
 	credentials *google.Credentials
 	client      *storage.Client
 }
 
-func New(ctx context.Context, config *config.GCPConfig) (*Uploader, error) {
+var _ providers.Uploader = (*GCPUploader)(nil)
+
+func New(ctx context.Context, config config.GCPConfig) (*GCPUploader, error) {
 	if config.Credentials == nil {
 		return nil, errors.New("gcp credentials are empty")
 	}
@@ -38,17 +41,17 @@ func New(ctx context.Context, config *config.GCPConfig) (*Uploader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Uploader{credentials: credentials, client: client}, nil
+	return &GCPUploader{credentials: credentials, client: client}, nil
 }
 
-func (u *Uploader) Upload(ctx context.Context, bucketName, key string, file *os.File) error {
+func (u *GCPUploader) Upload(ctx context.Context, bucketName, key string, reader io.ReadSeekCloser) error {
 	bucket := u.client.Bucket(bucketName)
 	if err := bucket.Create(ctx, u.credentials.ProjectID, &storage.BucketAttrs{}); err != nil {
 		return err
 	}
 	obj := bucket.Object(key)
 	writer := obj.NewWriter(ctx)
-	content, err := io.ReadAll(file)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}

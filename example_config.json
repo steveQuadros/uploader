@@ -13,7 +13,8 @@
   },
   "gcp": {
     "credentials": {
-      "filename": "<PATH TO YOUR GCP JSON File>"
+      "filename": "<PATH TO YOUR GCP JSON File>",
+      "scopes": ["https://www.googleapis.com/auth/devstorage.full_control"]
     }
   }
 }
