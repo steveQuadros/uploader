@@ -9,6 +9,7 @@ import (
 	"github.com/stevequadros/uploader/providers"
 	"io"
 	"io/ioutil"
+	"os"
 )
 
 type AzureUploader struct {
@@ -49,14 +50,24 @@ func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader i
 	// this is a workaround for now, but we'll copy it over to avoid this - in real application
 	// I'd prefer a better method since this could cause issues with large files
 	tmp, err := ioutil.TempFile("", "filescom-tmp-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		os.Remove(tmp.Name())
+	}()
+
 	_, err = io.Copy(tmp, reader)
 	if err != nil {
 		return err
 	}
+
+	// reset file to start after copy
 	_, err = tmp.Seek(0, 0)
 	if err != nil {
 		return err
 	}
+	
 	blobClient := containerClient.NewBlockBlobClient(key)
 	_, err = blobClient.Upload(ctx, tmp, &azblob.UploadBlockBlobOptions{})
 	if err != nil {
