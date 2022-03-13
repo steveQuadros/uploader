@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 )
 
 type Config struct {
@@ -17,6 +18,16 @@ Config takes list of providers and path to config file
 validates config file
 validates each provider config
 */
+
+func New(path string) (config Config, err error) {
+	var configFile *os.File
+	configFile, err = os.Open(path)
+	defer func() {
+		err = configFile.Close()
+	}()
+	config, err = NewFromJSON(configFile)
+	return config, err
+}
 
 func NewFromJSON(reader io.Reader) (config Config, err error) {
 	var configData []byte

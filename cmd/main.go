@@ -7,12 +7,9 @@ import (
 	"fmt"
 	"github.com/stevequadros/uploader/config"
 	xproviders "github.com/stevequadros/uploader/providers"
-	"github.com/stevequadros/uploader/providers/aws"
-	"github.com/stevequadros/uploader/providers/azure"
-	"github.com/stevequadros/uploader/providers/gcp"
+	"github.com/stevequadros/uploader/providers/coordinator"
 	"os"
 	"strings"
-	"sync"
 )
 
 // verify file was uploaded code for ease of use - maybe
@@ -20,11 +17,6 @@ import (
 // ease of testing
 //	- move all config validation into config
 //  - move all other code to providers.Coordinator
-
-type ProviderError struct {
-	p   xproviders.Provider
-	err error
-}
 
 type providerFlag []xproviders.Provider
 
@@ -41,9 +33,6 @@ func (i *providerFlag) Set(value string) error {
 	return nil
 }
 
-var providers providerFlag
-var filename, configPath, bucket, key string
-
 var usage = `
 uploader uploads a file to any of the provider providers [aws, gcp, azure] to the given bucket, key.
 
@@ -54,67 +43,60 @@ Example Usage:
 `
 
 func main() {
-	handleErrAndExit("Error validating flags", validateFlags())
+	providers := providerFlag{}
+	var filename, configPath, bucket, key string
+
+	if err := validateFlags(&providers, &filename, &configPath, &bucket, &key); err != nil {
+		logErrorAndExit("Error processing flags", err)
+	}
 
 	logInProcess("Validating config")
-	cfg := validateConfig(configPath)
+	cfg, err := config.New(configPath)
+	if err != nil {
+		logErrorAndExit("Config error", err)
+	}
 	logSuccess("Config validated")
 
 	logInProcess("Checking File to upload...")
 	file := validateUploadFile(filename)
 	defer func() {
-		if err := file.Close(); err != nil {
-			handleErrAndExit("error closing upload file", err)
+		if err = file.Close(); err != nil {
+			logErrorAndExit("error closing upload file", err)
 		}
 	}()
 	logSuccess("Upload file valid")
 
 	logInProcess("Initializing Providers...")
 	ctx := context.Background()
-	clients := initClients(ctx, cfg)
+	var coord coordinator.Coordinator
+	coord, err = coordinator.NewCoordinator(ctx, cfg)
+	if err != nil {
+		logErrorAndExit("Error intializing providers", err)
+	}
 	logSuccess(fmt.Sprintf("Providers Initialized: %v", providers))
 
 	logInProcess("Beginning Uploads")
-	uploadErrors := make(chan ProviderError, len(providers))
-	success := make(chan xproviders.Provider, len(providers))
-	wg := sync.WaitGroup{}
-	var count int
-	for i, c := range clients {
-		wg.Add(1)
-		go func(client xproviders.Uploader, n int) {
-			p := providers[n]
-			if uploadErr := client.Upload(context.Background(), bucket, key, file); uploadErr != nil {
-				uploadErrors <- ProviderError{p, uploadErr}
-			} else {
-				success <- p
-			}
-			wg.Done()
-		}(c, i)
+	res, err := coord.Do(ctx, bucket, key, file)
+	if err != nil {
+		logError("error uploading", err)
+	}
+	for _, p := range res.Done {
+		logSuccess(fmt.Sprintf("Successfully Uploaded to %q", p))
 	}
 
-	for count < len(providers) {
-		select {
-		case e := <-uploadErrors:
-			logError(fmt.Sprintf("Error Uploading file to %q: ", e.p), e.err)
-			count++
-		case p := <-success:
-			logSuccess(fmt.Sprintf("Successfully Uploaded to %q", p))
-			count++
-		}
+	for _, e := range res.Failed {
+		logError(fmt.Sprintf("Error Uploading file to %q: ", e.Provider), e.Error)
 	}
-
-	wg.Wait()
-	close(uploadErrors)
-	close(success)
+	logSuccess(fmt.Sprintf("file %q uploaded to %d providers: %v", file.Name(), len(coord.Providers()), coord.Providers()))
 	os.Exit(0)
 }
 
-func validateFlags() error {
-	flag.Var(&providers, "provider", "[REQUIRED 1+] Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
-	flag.StringVar(&filename, "file", "", "[REQUIRED] The file to upload")
-	flag.StringVar(&configPath, "config", "", "[REQUIRED] Path to config.json")
-	flag.StringVar(&bucket, "bucket", "", "[REQUIRED] Target bucket for file. Will Create bucket if it doesn't exist.")
-	flag.StringVar(&key, "key", "", "[REQUIRED] key for file")
+func validateFlags(providers *providerFlag, filename, configPath, bucket, key *string) error {
+	flag.Var(providers, "provider", "[REQUIRED 1+] Providers targeted. Valid Options: aws, gcp, azure. Each one must be preceded with it's own flag, ex: -provider aws -provider azure -provider gcp")
+	flag.StringVar(filename, "file", "", "[REQUIRED] The file to upload")
+	flag.StringVar(configPath, "config", "", "[REQUIRED] Path to config.json")
+	flag.StringVar(bucket, "bucket", "", "[REQUIRED] Target bucket for file. Will Create bucket if it doesn't exist.")
+	flag.StringVar(key, "key", "", "[REQUIRED] key for file")
 	flag.Parse()
 
 	if flag.NFlag() == 0 {
@@ -127,24 +109,24 @@ func validateFlags() error {
 	}
 
 	var validationErrors []error
-	if err := validateProviders(providers); err != nil {
+	if err := validateProviders(*providers); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 
-	if configPath == "" {
-		validationErrors = append(validationErrors, errors.New("configPath cannot be empty"))
+	if *configPath == "" {
+		validationErrors = append(validationErrors, errors.New("configPath flag cannot be empty"))
 	}
 
-	if filename == "" {
-		validationErrors = append(validationErrors, errors.New("filename to upload cannot be empty"))
+	if *filename == "" {
+		validationErrors = append(validationErrors, errors.New("filename flag to upload cannot be empty"))
 	}
 
-	if bucket == "" {
-		validationErrors = append(validationErrors, errors.New("bucket cannot be empty"))
+	if *bucket == "" {
+		validationErrors = append(validationErrors, errors.New("bucket flag cannot be empty"))
 	}
 
-	if key == "" {
-		validationErrors = append(validationErrors, errors.New("key cannot be empty"))
+	if *key == "" {
+		validationErrors = append(validationErrors, errors.New("key flag cannot be empty"))
 	}
 
 	if len(validationErrors) > 0 {
@@ -158,49 +140,12 @@ func validateFlags() error {
 	}
 }
 
-func validateConfig(path string) config.Config {
-	configFile, err := os.Open(path)
-	defer func() {
-		handleErrAndExit("Error closing config file: ", configFile.Close())
-	}()
-	if err != nil {
-		handleErrAndExit("error opening config ", err)
-	}
-	cfg, err := config.NewFromJSON(configFile)
-	if err != nil {
-		handleErrAndExit("error parsing configfile ", err)
-	}
-	return cfg
-}
-
 func validateUploadFile(path string) *os.File {
 	file, err := os.Open(path)
 	if err != nil {
 		handleErrAndExit("could not open file to upload ", err)
 	}
 	return file
-}
-
-func initClients(ctx context.Context, cfg config.Config) []xproviders.Uploader {
-	var clients []xproviders.Uploader
-	var initErrors []error
-	for _, p := range providers {
-		var client xproviders.Uploader
-		client, err := initProvider(ctx, p, cfg)
-		if err != nil {
-			initErrors = append(initErrors, err)
-		}
-		clients = append(clients, client)
-	}
-
-	if len(initErrors) != 0 {
-		fmt.Println("\u2717 Error(s) initializing Providers")
-		for _, e := range initErrors {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-	return clients
 }
 
 func validateProviders(providers []xproviders.Provider) error {
@@ -220,53 +165,6 @@ func validateProviders(providers []xproviders.Provider) error {
 	}
 }
 
-func initProvider(ctx context.Context, p xproviders.Provider, cfg config.Config) (xproviders.Uploader, error) {
-	switch p {
-	case xproviders.AWS:
-		return initAWS(*cfg.AWS)
-	case xproviders.GCP:
-		return initGCP(ctx, *cfg.GCP)
-	case xproviders.Azure:
-		return initAzure(*cfg.Azure)
-	default:
-		return nil, errors.New("unknown provider")
-	}
-}
-
-func initAWS(cfg config.AWS) (*aws.AWSUploader, error) {
-	if cfg.Credentials.Profile == "" || cfg.Credentials.Filename == "" {
-		return nil, errors.New("AWS config invalid")
-	}
-
-	client, err := aws.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func initGCP(ctx context.Context, cfg config.GCP) (*gcp.GCPUploader, error) {
-	if cfg.Credentials.Filename == "" || len(cfg.Credentials.Scopes) == 0 {
-		return nil, errors.New("invalid gcp config")
-	}
-	client, err := gcp.New(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func initAzure(cfg config.Azure) (*azure.AzureUploader, error) {
-	if cfg.Credentials.AccountName == "" || cfg.Credentials.AccountKey == "" {
-		return nil, errors.New("invalid azure config")
-	}
-	client, err := azure.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
 func handleErrAndExit(prepend string, err error) {
 	if err != nil {
 		logError(prepend, err)
@@ -281,6 +179,11 @@ func logInProcess(s string) {
 func logError(prepend string, e error) {
 	fmt.Println("✗ " + prepend)
 	fmt.Println(e)
+}
+
+func logErrorAndExit(prepend string, e error) {
+	logError(prepend, e)
+	os.Exit(1)
 }
 
 func logSuccess(s string) {

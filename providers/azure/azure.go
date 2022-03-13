@@ -18,8 +18,8 @@ type AzureUploader struct {
 
 var _ providers.Uploader = (*AzureUploader)(nil)
 
-func New(config config.Azure) (*AzureUploader, error) {
-	if config.Credentials == nil {
+func New(config *config.Azure) (*AzureUploader, error) {
+	if config == nil || config.Credentials == nil {
 		return nil, errors.New("azure credentials are empty")
 	}
 

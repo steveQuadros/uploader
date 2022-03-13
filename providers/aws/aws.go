@@ -21,8 +21,8 @@ type AWSUploader struct {
 
 var _ providers.Uploader = (*AWSUploader)(nil)
 
-func New(config config.AWS) (*AWSUploader, error) {
-	if config.Credentials == nil {
+func New(config *config.AWS) (*AWSUploader, error) {
+	if config == nil || config.Credentials == nil {
 		return nil, errors.New("AWS credentials are empty")
 	}
 	// The session the S3 AWSUploader will use
