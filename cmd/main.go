@@ -15,11 +15,11 @@ import (
 	"sync"
 )
 
-// providers
 // verify file was uploaded code for ease of use - maybe
-// uploading files should attempt all and return list of errors rather than fast failing
 // os.Getenv for additional option to config file
 // configs need proper json annotations
+// if config doesn't align to producers provided, error
+// update readme with requirements for config file types
 
 type ProviderError struct {
 	p   xproviders.Provider
@@ -57,52 +57,21 @@ func main() {
 	handleErrAndExit("Error validating flags", validateFlags())
 
 	logInProcess("Validating config")
-	configFile, err := os.Open(configPath)
-	defer func() {
-		handleErrAndExit("Error closing config file: ", configFile.Close())
-	}()
-	if err != nil {
-		handleErrAndExit("error opening config ", err)
-	}
-	cfg, err := config.NewFromJSON(configFile)
-	if err != nil {
-		handleErrAndExit("error parsing configfile ", err)
-	}
+	cfg := validateConfig(configPath)
 	logSuccess("Config validated")
 
 	logInProcess("Checking File to upload...")
-	file, err := os.Open(filename)
+	file := validateUploadFile(filename)
 	defer func() {
-		if err = file.Close(); err != nil {
+		if err := file.Close(); err != nil {
 			handleErrAndExit("error closing upload file", err)
 		}
 	}()
-	if err != nil {
-		handleErrAndExit("could not open file to upload ", err)
-	}
 	logSuccess("Upload file valid")
 
-	ctx := context.Background()
-
 	logInProcess("Initializing Providers...")
-	var clients []xproviders.Uploader
-	var initErrors []error
-	for _, p := range providers {
-		var client xproviders.Uploader
-		client, err = initProvider(ctx, p, cfg)
-		if err != nil {
-			initErrors = append(initErrors, err)
-		}
-		clients = append(clients, client)
-	}
-
-	if len(initErrors) != 0 {
-		fmt.Println("\u2717 Error(s) initializing Providers")
-		for _, e := range initErrors {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
+	ctx := context.Background()
+	clients := initClients(ctx, cfg)
 	logSuccess(fmt.Sprintf("Providers Initialized: %v", providers))
 
 	logInProcess("Beginning Uploads")
@@ -187,6 +156,51 @@ func validateFlags() error {
 	} else {
 		return nil
 	}
+}
+
+func validateConfig(path string) *config.Config {
+	configFile, err := os.Open(path)
+	defer func() {
+		handleErrAndExit("Error closing config file: ", configFile.Close())
+	}()
+	if err != nil {
+		handleErrAndExit("error opening config ", err)
+	}
+	cfg, err := config.NewFromJSON(configFile)
+	if err != nil {
+		handleErrAndExit("error parsing configfile ", err)
+	}
+	return cfg
+}
+
+func validateUploadFile(path string) *os.File {
+	file, err := os.Open(path)
+	if err != nil {
+		handleErrAndExit("could not open file to upload ", err)
+	}
+	return file
+}
+
+func initClients(ctx context.Context, cfg *config.Config) []xproviders.Uploader {
+	var clients []xproviders.Uploader
+	var initErrors []error
+	for _, p := range providers {
+		var client xproviders.Uploader
+		client, err := initProvider(ctx, p, cfg)
+		if err != nil {
+			initErrors = append(initErrors, err)
+		}
+		clients = append(clients, client)
+	}
+
+	if len(initErrors) != 0 {
+		fmt.Println("\u2717 Error(s) initializing Providers")
+		for _, e := range initErrors {
+			fmt.Println(e)
+		}
+		os.Exit(1)
+	}
+	return clients
 }
 
 func validateProviders(providers []xproviders.Provider) error {

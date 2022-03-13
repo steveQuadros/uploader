@@ -48,7 +48,9 @@ func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader i
 	// azure closes the file, which will cause future calls to fail
 	// this is a workaround for now, but we'll copy it over to avoid this - in real application
 	// I'd prefer a better method since this could cause issues with large files
+	// NOTE - azureblob.Upload closes file, so no need to call
 	tmp, err := ioutil.TempFile("", "filescom-tmp-")
+	//_ = os.Remove(tmp.Name())
 	_, err = io.Copy(tmp, reader)
 	if err != nil {
 		return err
