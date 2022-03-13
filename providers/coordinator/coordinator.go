@@ -39,7 +39,7 @@ func (c *Coordinator) Do(ctx context.Context, bucket, key string, reader io.Read
 	for i, u := range c.uploaders {
 		wg.Add(1)
 		go func(client providers.Uploader, n int) {
-			p := u.GetName()
+			p := client.GetName()
 			if uploadErr := client.Upload(ctx, bucket, key, reader); uploadErr != nil {
 				uploadErrors <- DoError{p, uploadErr}
 			} else {
