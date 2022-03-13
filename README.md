@@ -7,6 +7,11 @@ run `make build`
 
 run `./uploader` to see usage
 
+Additional `make` commands:
+- `make run`
+- `make test` tests with `-race -cover`
+- `make buildvalid` tests, builds, and runs with valid input (assumes valid config file located at `~/.filescom/config.json`) 
+
 ## Targets
 Targets aws, gcp, and azure, and any specific one can be targeted.
 
