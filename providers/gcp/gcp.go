@@ -44,6 +44,10 @@ func New(ctx context.Context, config *config.GCP) (*GCPUploader, error) {
 	return &GCPUploader{credentials: credentials, client: client}, nil
 }
 
+func (u *GCPUploader) GetName() providers.Provider {
+	return providers.GCP
+}
+
 func (u *GCPUploader) Upload(ctx context.Context, bucketName, key string, reader io.ReadSeekCloser) error {
 	bucket := u.client.Bucket(bucketName)
 	if bucketAttrs, err := bucket.Attrs(ctx); bucketAttrs == nil {

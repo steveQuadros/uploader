@@ -35,6 +35,10 @@ func New(config *config.Azure) (*AzureUploader, error) {
 	return &AzureUploader{client: &serviceClient}, nil
 }
 
+func (u *AzureUploader) GetName() providers.Provider {
+	return providers.Azure
+}
+
 func (u *AzureUploader) Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error {
 	containerClient := u.client.NewContainerClient(bucket)
 	// if container already exists, proceed without creation

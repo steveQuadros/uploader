@@ -46,6 +46,10 @@ func New(config *config.AWS) (*AWSUploader, error) {
 	}, nil
 }
 
+func (u *AWSUploader) GetName() providers.Provider {
+	return providers.AWS
+}
+
 func (u *AWSUploader) Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error {
 	_, err := u.client.S3.CreateBucket(&s3.CreateBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {

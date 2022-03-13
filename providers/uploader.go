@@ -22,6 +22,7 @@ var Providers = map[Provider]struct{}{
 
 type Uploader interface {
 	Upload(ctx context.Context, bucket, key string, reader io.ReadSeekCloser) error
+	GetName() Provider
 }
 
 type UploadError struct {
