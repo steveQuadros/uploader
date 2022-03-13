@@ -60,6 +60,11 @@ func TestNewFromJSON(t *testing.T) {
 			},
 			false,
 		},
+		"invalid json returns an error": {
+			`{"aws":""""}`,
+			Config{},
+			true,
+		},
 		"[aws] config invalid without filename": {
 			`{"aws":{}}`,
 			Config{AWS: &AWS{}},

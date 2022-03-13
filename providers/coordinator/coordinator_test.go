@@ -11,8 +11,6 @@ import (
 	"testing"
 )
 
-var testProvider providers.Provider = "Test"
-
 type testUploader struct {
 	name    providers.Provider
 	wantErr bool
