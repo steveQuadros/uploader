@@ -19,7 +19,7 @@ type GCPUploader struct {
 
 var _ providers.Uploader = (*GCPUploader)(nil)
 
-func New(ctx context.Context, config config.GCPConfig) (*GCPUploader, error) {
+func New(ctx context.Context, config config.GCP) (*GCPUploader, error) {
 	if config.Credentials == nil {
 		return nil, errors.New("gcp credentials are empty")
 	}

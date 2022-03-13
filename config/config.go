@@ -2,45 +2,61 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 )
 
 type Config struct {
-	AWS   *AWSConfig
-	Azure *AzureConfig
-	GCP   *GCPConfig
+	AWS   *AWS
+	Azure *Azure
+	GCP   *GCP
 }
 
-func NewFromJSON(reader io.Reader) (*Config, error) {
+/*
+Config takes list of providers and path to config file
+validates config file
+validates each provider config
+*/
+
+func NewFromJSON(reader io.Reader) (config Config, err error) {
 	var configData []byte
-	configData, err := io.ReadAll(reader)
+	configData, err = io.ReadAll(reader)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
 
-	config := &Config{}
-	err = json.Unmarshal(configData, config)
+	err = json.Unmarshal(configData, &config)
 	if err != nil {
-		return nil, err
+		return config, err
+	}
+
+	err = config.Validate()
+	if err != nil {
+		return config, err
 	}
 	return config, nil
 }
 
-func (c *Config) GetAWS() AWSConfig {
-	return *c.AWS
+func (c *Config) Validate() error {
+	if c.AWS != nil {
+		if err := c.AWS.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.Azure != nil {
+		if err := c.Azure.Validate(); err != nil {
+			return err
+		}
+	}
+	if c.GCP != nil {
+		if err := c.GCP.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (c *Config) GetGCP() GCPConfig {
-	return *c.GCP
-}
-
-func (c *Config) GetAzure() AzureConfig {
-	return *c.Azure
-}
-
-// @TODO make unexported unnecessary types
-
-type AWSConfig struct {
+type AWS struct {
 	Credentials *AWSCredentials
 }
 
@@ -51,8 +67,8 @@ type AWSCredentials struct {
 	Profile string
 }
 
-func NewAWS(filename, profile string) *AWSConfig {
-	return &AWSConfig{
+func NewAWS(filename, profile string) *AWS {
+	return &AWS{
 		Credentials: &AWSCredentials{
 			Filename: filename,
 			Profile:  profile,
@@ -60,7 +76,20 @@ func NewAWS(filename, profile string) *AWSConfig {
 	}
 }
 
-type AzureConfig struct {
+func (p *AWS) Validate() error {
+	if p.Credentials == nil {
+		return errors.New("empty credentials")
+	}
+	if p.Credentials.Profile == "" {
+		return errors.New("aws profile empty")
+	}
+	if p.Credentials.Filename == "" {
+		return errors.New("aws config filename empty")
+	}
+	return nil
+}
+
+type Azure struct {
 	Credentials *AzureCredentials
 }
 
@@ -69,14 +98,27 @@ type AzureCredentials struct {
 	AccountKey  string
 }
 
-func NewAzure(accountName, accountKey string) *AzureConfig {
-	return &AzureConfig{Credentials: &AzureCredentials{
+func NewAzure(accountName, accountKey string) *Azure {
+	return &Azure{Credentials: &AzureCredentials{
 		AccountName: accountName,
 		AccountKey:  accountKey,
 	}}
 }
 
-type GCPConfig struct {
+func (p *Azure) Validate() error {
+	if p.Credentials == nil {
+		return errors.New("empty credentials")
+	}
+	if p.Credentials.AccountName == "" {
+		return errors.New("azure accountname empty")
+	}
+	if p.Credentials.AccountKey == "" {
+		return errors.New("azure key empty")
+	}
+	return nil
+}
+
+type GCP struct {
 	Credentials *GCPCredentials
 }
 
@@ -86,11 +128,24 @@ type GCPCredentials struct {
 	Scopes   []string
 }
 
-func NewGCP(filename string) *GCPConfig {
-	return &GCPConfig{&GCPCredentials{
+func NewGCP(filename string) *GCP {
+	return &GCP{&GCPCredentials{
 		Filename: filename,
 		// defaulting to this for now, ideally should accept scopes as argument in more fleshed out version
 		Scopes: []string{"https://www.googleapis.com/auth/devstorage.full_control"},
 	},
 	}
+}
+
+func (p *GCP) Validate() error {
+	if p.Credentials == nil {
+		return errors.New("empty credentials")
+	}
+	if p.Credentials.Filename == "" {
+		return errors.New("gcp filename empty")
+	}
+	if len(p.Credentials.Scopes) == 0 {
+		return errors.New("gcp scopes empty")
+	}
+	return nil
 }

@@ -16,10 +16,10 @@ import (
 )
 
 // verify file was uploaded code for ease of use - maybe
-// os.Getenv for additional option to config file
 // configs need proper json annotations
-// if config doesn't align to producers provided, error
-// update readme with requirements for config file types
+// ease of testing
+//	- move all config validation into config
+//  - move all other code to providers.Coordinator
 
 type ProviderError struct {
 	p   xproviders.Provider
@@ -158,7 +158,7 @@ func validateFlags() error {
 	}
 }
 
-func validateConfig(path string) *config.Config {
+func validateConfig(path string) config.Config {
 	configFile, err := os.Open(path)
 	defer func() {
 		handleErrAndExit("Error closing config file: ", configFile.Close())
@@ -181,7 +181,7 @@ func validateUploadFile(path string) *os.File {
 	return file
 }
 
-func initClients(ctx context.Context, cfg *config.Config) []xproviders.Uploader {
+func initClients(ctx context.Context, cfg config.Config) []xproviders.Uploader {
 	var clients []xproviders.Uploader
 	var initErrors []error
 	for _, p := range providers {
@@ -220,20 +220,20 @@ func validateProviders(providers []xproviders.Provider) error {
 	}
 }
 
-func initProvider(ctx context.Context, p xproviders.Provider, cfg *config.Config) (xproviders.Uploader, error) {
+func initProvider(ctx context.Context, p xproviders.Provider, cfg config.Config) (xproviders.Uploader, error) {
 	switch p {
 	case xproviders.AWS:
-		return initAWS(cfg.GetAWS())
+		return initAWS(*cfg.AWS)
 	case xproviders.GCP:
-		return initGCP(ctx, cfg.GetGCP())
+		return initGCP(ctx, *cfg.GCP)
 	case xproviders.Azure:
-		return initAzure(cfg.GetAzure())
+		return initAzure(*cfg.Azure)
 	default:
 		return nil, errors.New("unknown provider")
 	}
 }
 
-func initAWS(cfg config.AWSConfig) (*aws.AWSUploader, error) {
+func initAWS(cfg config.AWS) (*aws.AWSUploader, error) {
 	if cfg.Credentials.Profile == "" || cfg.Credentials.Filename == "" {
 		return nil, errors.New("AWS config invalid")
 	}
@@ -245,7 +245,7 @@ func initAWS(cfg config.AWSConfig) (*aws.AWSUploader, error) {
 	return client, nil
 }
 
-func initGCP(ctx context.Context, cfg config.GCPConfig) (*gcp.GCPUploader, error) {
+func initGCP(ctx context.Context, cfg config.GCP) (*gcp.GCPUploader, error) {
 	if cfg.Credentials.Filename == "" || len(cfg.Credentials.Scopes) == 0 {
 		return nil, errors.New("invalid gcp config")
 	}
@@ -256,7 +256,7 @@ func initGCP(ctx context.Context, cfg config.GCPConfig) (*gcp.GCPUploader, error
 	return client, nil
 }
 
-func initAzure(cfg config.AzureConfig) (*azure.AzureUploader, error) {
+func initAzure(cfg config.Azure) (*azure.AzureUploader, error) {
 	if cfg.Credentials.AccountName == "" || cfg.Credentials.AccountKey == "" {
 		return nil, errors.New("invalid azure config")
 	}

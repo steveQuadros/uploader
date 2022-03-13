@@ -21,7 +21,7 @@ type AWSUploader struct {
 
 var _ providers.Uploader = (*AWSUploader)(nil)
 
-func New(config config.AWSConfig) (*AWSUploader, error) {
+func New(config config.AWS) (*AWSUploader, error) {
 	if config.Credentials == nil {
 		return nil, errors.New("AWS credentials are empty")
 	}
